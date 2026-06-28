@@ -1,0 +1,2511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMten — The Smartest Way to Start a Conversation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  (function() {
+    emailjs.init({ publicKey: 'Agwe4gUtFBuUGIKCK' });
+  })();
+</script>
+<script type="module">
+  // Firebase initialization — single source of truth for this project.
+  // Do not add another initializeApp() call anywhere else in this file;
+  // everything else (the waitlist form) reads Firestore via the
+  // window.dmtenFirebaseReady promise set up below.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCaYQtb_9DcxYx_CHimmMm2zXfsbXd5bR8",
+    authDomain: "dmten-b1bca.firebaseapp.com",
+    databaseURL: "https://dmten-b1bca-default-rtdb.firebaseio.com",
+    projectId: "dmten-b1bca",
+    storageBucket: "dmten-b1bca.firebasestorage.app",
+    messagingSenderId: "985305914536",
+    appId: "1:985305914536:web:0944a1476dfd81970cf69d",
+    measurementId: "G-ZHKQ0TZYD1"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Analytics can fail to load in some environments (ad blockers, etc.).
+  // Don't let that break Firestore, which the waitlist form depends on.
+  try { getAnalytics(app); } catch (e) { console.warn('Firebase Analytics failed to initialize:', e); }
+
+  // The waitlist submit handler further down the page is a regular
+  // (non-module) script, so it can't `import` Firestore directly. Instead
+  // it awaits this promise to get a ready-to-use db + the functions it needs.
+  window.dmtenFirebaseReady = Promise.resolve({ db, collection, addDoc, serverTimestamp, query, where, getDocs });
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Inline icon SVGs (replacing the old lucide <i data-lucide> font-icons).
+     Size relative to 1em so each icon automatically matches whatever
+     font-size its container already declares (.suggest-icon, .how-icon,
+     .stat-icon-wrap, etc.) — exactly like the old icon font behaved.
+     Without this, raw <svg> ignores font-size entirely and renders at a
+     large intrinsic default size. Containers with an explicit pixel size
+     (e.g. .stat-icon-wrap svg, .waitlist-success-icon svg) override this
+     further down and take precedence via normal CSS specificity. */
+  svg[class^="icon-"] {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+  }
+
+  :root {
+    --black: #000000;
+    --bg: #080810;
+    --bg2: #0d0d1a;
+    --card: #0f0f1f;
+    --card2: #13132a;
+    --border: rgba(255,255,255,0.08);
+    --purple: #7c3aed;
+    --purple2: #9f5bff;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --yellow: #facc15;
+    --white: #ffffff;
+    --gray: #94a3b8;
+    --gray2: #64748b;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+  /* PRELOADER */
+#preloader {
+  position: fixed;
+  inset: 0;
+  background: #0b0b12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+#preloader.hide {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.preloader-content {
+  text-align: center;
+}
+
+.preloader-content .logo {
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+}
+
+.preloader-content .logo span {
+  color: #7c3aed;
+}
+
+.loading-text {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+/* bars animation */
+.bars {
+  display: flex;
+  gap: 4px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.bars .bar {
+  width: 4px;
+  height: 18px;
+  background: #7c3aed;
+  animation: bounce 0.8s infinite ease-in-out;
+}
+
+.bars .bar:nth-child(2) { animation-delay: 0.1s; }
+.bars .bar:nth-child(3) { animation-delay: 0.2s; }
+.bars .bar:nth-child(4) { animation-delay: 0.3s; }
+.bars .bar:nth-child(5) { animation-delay: 0.4s; }
+.bars .bar:nth-child(6) { animation-delay: 0.5s; }
+.bars .bar:nth-child(7) { animation-delay: 0.6s; }
+.bars .bar:nth-child(8) { animation-delay: 0.7s; }
+
+@keyframes bounce {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
+  50% { transform: scaleY(1.2); opacity: 1; }
+}
+  .mouse-glow,
+.mouse-glow-2 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 600px;
+  height: 600px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+}
+
+.mouse-glow {
+  background: radial-gradient(
+    circle,
+    rgba(124, 58, 237, 0.35),
+    transparent 60%
+  );
+}
+
+.mouse-glow-2 {
+  width: 500px;
+  height: 500px;
+  opacity: 0.35;
+  filter: blur(120px);
+  background: radial-gradient(
+    circle,
+    rgba(168, 85, 247, 0.25),
+    transparent 65%
+  );
+}
+  /* STARS */
+  .stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--d, 3s) infinite alternate;
+  }
+  @keyframes twinkle { from { opacity: 0.1; } to { opacity: 0.7; } }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    height: 64px;
+    background: rgba(8,8,16,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+  }
+  .nav-logo {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .nav-logo span { color: var(--purple2); }
+  .nav-logo sup { font-size: 12px; color: var(--purple2); vertical-align: super; }
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--gray);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--white); }
+
+  /* PRODUCT DROPDOWN */
+  .dropdown {
+    position: relative;
+  }
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .dropdown-arrow {
+    font-size: 10px;
+    color: var(--gray2);
+    transition: transform 0.3s ease;
+    display: inline-block;
+  }
+  .dropdown:hover .dropdown-arrow {
+    transform: rotate(180deg);
+    color: var(--purple2);
+  }
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 18px);
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    width: 360px;
+    background: rgba(15,15,31,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(124,58,237,0.05);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
+    z-index: 150;
+  }
+  .dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+  .dropdown-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .dropdown-item:hover {
+    background: rgba(124,58,237,0.15);
+    transform: translateY(-2px);
+  }
+  .dropdown-item-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dropdown-item-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 2px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .dropdown-item-desc {
+    font-size: 12px;
+    color: var(--gray2);
+    line-height: 1.5;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .nav-actions { display: flex; align-items: center; gap: 16px; }
+  .nav-signin {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-signin:hover { color: white; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s, transform 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120px 24px 60px;
+    text-align: center;
+    z-index: 1;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 600px;
+    background: radial-gradient(ellipse, rgba(124,58,237,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--purple2);
+    margin-bottom: 28px;
+  }
+  .pill-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--purple2);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+
+  .hero-headline {
+    font-size: clamp(40px, 7vw, 80px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+  }
+  .hero-headline .gradient {
+    background: linear-gradient(135deg, var(--purple2), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gray);
+    margin-bottom: 12px;
+  }
+  .hero-desc {
+    font-size: 15px;
+    color: var(--gray2);
+    max-width: 480px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+  }
+
+  /* HERO DEMO */
+  .hero-demo-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .float-tag {
+    position: absolute;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    z-index: 10;
+  }
+  .float-tag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple2); flex-shrink: 0; }
+  .float-tag.tl { top: 60px; left: -40px; }
+  .float-tag.ml { top: 50%; left: -60px; transform: translateY(-50%); }
+  .float-tag.tr { top: 60px; right: -40px; }
+  .float-tag.mr { top: 50%; right: -60px; transform: translateY(-50%); }
+
+  .hero-demo {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    box-shadow: 0 0 80px rgba(124,58,237,0.15);
+    text-align: left;
+  }
+  .demo-panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gray2);
+    margin-bottom: 12px;
+  }
+  .demo-to {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--gray);
+    margin-bottom: 14px;
+  }
+  .insta-icon { width: 16px; height: 16px; background: linear-gradient(135deg,#e1306c,#f77737); border-radius: 4px; flex-shrink: 0; }
+  .demo-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .demo-count { font-size: 11px; color: var(--gray2); }
+  .score-ring {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: 4px solid var(--purple2);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    position: relative;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4);
+  }
+  .score-num { font-size: 28px; font-weight: 900; line-height: 1; }
+  .score-denom { font-size: 11px; color: var(--gray2); }
+  .analysis-row {
+    display: flex; justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .analysis-row:last-of-type { border-bottom: none; }
+  .analysis-label { color: var(--gray); }
+  .green { color: var(--green); font-weight: 600; }
+  .blue-text { color: #60a5fa; font-weight: 600; }
+  .tips-bar {
+    margin-top: 14px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--green);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* INTERACTIVE DEMO */
+  .demo-message-input {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.7;
+    min-height: 120px;
+    max-height: 160px;
+    overflow-y: auto;
+    outline: none;
+    border-radius: 8px;
+    padding: 2px 4px;
+    transition: box-shadow 0.2s;
+  }
+  .demo-message-input:focus {
+    box-shadow: 0 0 0 2px rgba(124,58,237,0.4);
+  }
+  .demo-message-input:empty::before {
+    content: attr(data-placeholder);
+    color: var(--gray2);
+  }
+  .analyze-btn {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    border: none;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: white;
+    transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
+    position: relative;
+  }
+  .analyze-btn:hover:not(:disabled) { transform: translateY(-1px) scale(1.05); box-shadow: 0 0 16px rgba(124,58,237,0.5); }
+  .analyze-btn:active:not(:disabled) { transform: scale(0.95); }
+  .analyze-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .analyze-btn .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .reset-link {
+    font-size: 11px;
+    color: var(--gray2);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    transition: color 0.2s, text-decoration-color 0.2s;
+  }
+  .reset-link:hover { color: var(--purple2); text-decoration-color: var(--purple2); }
+
+  /* Analysis panel states */
+  .analysis-state { position: relative; min-height: 230px; }
+  .analysis-idle, .analysis-loading, .analysis-result {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .analysis-idle.hidden, .analysis-loading.hidden, .analysis-result.hidden {
+    display: none;
+  }
+  .analysis-idle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 230px;
+    color: var(--gray2);
+    font-size: 13px;
+    gap: 10px;
+  }
+  .analysis-idle-icon {
+    font-size: 28px;
+    opacity: 0.6;
+  }
+  .analysis-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 230px;
+    gap: 16px;
+  }
+  .scan-ring {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: var(--purple2);
+    animation: spin 0.9s linear infinite;
+  }
+  .loading-step {
+    font-size: 12px;
+    color: var(--gray);
+    min-height: 16px;
+    transition: opacity 0.3s;
+  }
+  .loading-progress-track {
+    width: 160px;
+    height: 4px;
+    background: var(--card2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .loading-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--purple), var(--purple2));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .analysis-result { opacity: 0; transform: translateY(8px); }
+  .analysis-result.visible { opacity: 1; transform: translateY(0); animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .score-ring.scoring { transition: box-shadow 0.6s; }
+  .rewrite-reveal {
+    margin-top: 12px;
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #c4b5fd;
+  }
+  .rewrite-reveal-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--purple2);
+    margin-bottom: 6px;
+  }
+  .typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 12px;
+    background: var(--purple2);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scan-ring, .analyze-btn .spinner, .typing-cursor { animation: none; }
+  }
+
+  /* SECTIONS */
+  section { position: relative; z-index: 1; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* DASHBOARD */
+  .dashboard { padding: 80px 24px; }
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .dash-card {
+    background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .dash-card.visible { opacity: 1; transform: translateY(0); }
+  .dash-card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gray2);
+    margin-bottom: 14px;
+  }
+  .score-big { font-size: 36px; font-weight: 900; }
+  .score-denom2 { font-size: 16px; color: var(--gray2); font-weight: 400; }
+  .excellent { color: var(--green); font-size: 13px; font-weight: 600; margin-top: 4px; }
+
+  /* Mini graph */
+  .mini-graph { margin-top: 16px; }
+  .mini-graph svg { width: 100%; height: 60px; }
+
+  /* Checklist */
+  .check-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .check-icon { color: var(--green); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .check-title { font-weight: 600; color: var(--white); }
+  .check-desc { color: var(--gray2); font-size: 12px; }
+
+  /* Rewrite */
+  .rewrite-box {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--gray);
+    margin-bottom: 10px;
+  }
+  .rewrite-box.after { border-color: rgba(124,58,237,0.4); color: #c4b5fd; background: rgba(124,58,237,0.08); }
+  .rewrite-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--gray2); margin-bottom: 6px; }
+
+  /* Radar chart placeholder */
+  .radar-wrap { display: flex; justify-content: center; margin-top: 8px; }
+  .radar-label { font-size: 10px; color: var(--gray2); text-align: center; margin-top: 4px; }
+
+  /* Bar chart */
+  .reply-high { font-size: 32px; font-weight: 800; color: var(--green); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .bar-row { display: flex; gap: 4px; align-items: flex-end; height: 40px; margin-bottom: 10px; }
+  .bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--card2); }
+  .bar.active { background: var(--green); }
+  .reply-desc { font-size: 12px; color: var(--gray2); }
+
+  /* Suggested / Best time */
+  .suggest-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--gray);
+    cursor: pointer;
+  }
+  .suggest-item:last-child { border-bottom: none; }
+  .suggest-icon { font-size: 18px; margin-right: 10px; }
+  .suggest-title { font-weight: 600; color: var(--white); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .suggest-val { font-weight: 700; color: var(--white); font-size: 15px; margin-top: 4px; }
+  .suggest-sub { font-size: 11px; color: var(--gray2); }
+
+  /* TESTIMONIALS */
+  .testimonials { padding: 80px 24px; }
+  .section-title {
+    text-align: center;
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 800;
+    margin-bottom: 48px;
+    letter-spacing: -0.5px;
+  }
+  .testi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .testi-card {
+    background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .testi-card.visible { opacity: 1; transform: translateY(0); }
+  .quote-mark { font-size: 32px; color: var(--purple2); line-height: 1; margin-bottom: 12px; font-family: Georgia, serif; }
+  .testi-text { font-size: 14px; color: #cbd5e1; line-height: 1.7; margin-bottom: 20px; }
+  .testi-author { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .author-name { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .verified { color: var(--purple2); font-size: 14px; }
+  .author-role { font-size: 12px; color: var(--gray2); }
+  .author-followers { font-size: 11px; color: var(--gray2); margin-top: 2px; }
+
+  /* STATS */
+  .stats { padding: 60px 24px; }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .stat-card {
+    background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 24px;
+    display: flex; align-items: center; gap: 20px;
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .stat-card.visible { opacity: 1; transform: translateY(0); }
+  .stat-icon-wrap {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .stat-num { font-size: 36px; font-weight: 900; color: var(--purple2); line-height: 1; }
+  .stat-label { font-size: 13px; color: var(--gray2); margin-top: 4px; }
+
+  /* PRICING */
+  .pricing { padding: 80px 24px; }
+  .pricing-header { text-align: center; margin-bottom: 40px; }
+  .pricing-toggle {
+    display: inline-flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px;
+    gap: 4px;
+    margin-top: 20px;
+  }
+  .toggle-btn {
+    padding: 8px 20px;
+    border-radius: 100px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--gray);
+    transition: all 0.2s;
+  }
+  .toggle-btn.active { background: var(--purple); color: white; }
+  .save-badge {
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-left: 6px;
+  }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .price-card {
+    background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+  }
+  .price-card.popular {
+    border-color: var(--purple);
+    box-shadow: 0 0 40px rgba(124,58,237,0.2);
+  }
+  .popular-badge {
+    position: absolute;
+    top: -12px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 16px;
+    border-radius: 100px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .price-plan { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray2); margin-bottom: 8px; }
+  .price-amount { font-size: 48px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+  .price-amount span { font-size: 16px; color: var(--gray2); font-weight: 400; }
+  .price-features { list-style: none; margin: 24px 0; }
+  .price-features li {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--gray);
+    padding: 6px 0;
+  }
+  .price-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .btn-outline {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-outline:hover { background: var(--card2); }
+  .btn-purple {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-purple:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* FAQ */
+  .faq { padding: 80px 24px; }
+  .faq-list { max-width: 720px; margin: 0 auto; }
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+  }
+  .faq-q {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 15px;
+    font-weight: 600;
+    text-align: left;
+    padding: 20px 0;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-family: 'Inter', sans-serif;
+  }
+  .faq-q:hover { color: var(--purple2); }
+  .faq-chevron { font-size: 18px; color: var(--gray2); transition: transform 0.3s; flex-shrink: 0; }
+  .faq-a {
+    font-size: 14px;
+    color: var(--gray);
+    line-height: 1.7;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s;
+  }
+  .faq-a.open { max-height: 200px; padding-bottom: 20px; }
+  .faq-chevron.open { transform: rotate(180deg); }
+
+  /* HOW IT WORKS */
+  .how { padding: 80px 24px; background: var(--bg2); }
+  .how-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .how-grid::before {
+    content: '';
+    position: absolute;
+    top: 36px; left: calc(16.66% + 20px); right: calc(16.66% + 20px);
+    height: 2px;
+    background: linear-gradient(90deg, var(--purple), var(--purple2));
+    border-radius: 1px;
+  }
+  .how-card { text-align: center; padding: 0 16px; }
+  .how-num {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    font-weight: 900;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4);
+  }
+  .how-icon { font-size: 28px; }
+  .how-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .how-desc { font-size: 13px; color: var(--gray2); line-height: 1.6; }
+
+  /* PLATFORMS */
+  .platforms { padding: 48px 24px; }
+  .platforms-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .platform-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray2); }
+  .platform-logos { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .platform-item { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--gray); }
+  .platform-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .works-text { font-size: 14px; font-weight: 600; color: var(--white); text-align: right; }
+  .works-sub { font-size: 11px; color: var(--gray2); }
+
+  /* WAITLIST */
+  .waitlist {
+    padding: 90px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .waitlist::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px; height: 500px;
+    background: radial-gradient(ellipse, rgba(124,58,237,0.16) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .waitlist-inner {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .waitlist-card {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 56px 40px;
+    box-shadow: 0 0 60px rgba(124,58,237,0.12);
+  }
+  .waitlist-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--purple2);
+    margin-bottom: 24px;
+  }
+  .waitlist-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--purple2);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  .waitlist-title {
+    font-size: clamp(28px, 4.5vw, 42px);
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    line-height: 1.15;
+  }
+  .waitlist-title .gradient {
+    background: linear-gradient(135deg, var(--purple2), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .waitlist-desc {
+    font-size: 15px;
+    color: var(--gray);
+    max-width: 480px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+  }
+  .waitlist-benefits {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 36px;
+    text-align: left;
+  }
+  .waitlist-benefit {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .waitlist-benefit-icon {
+    font-size: 18px;
+    color: var(--purple2);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .waitlist-benefit-text {
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 1.5;
+  }
+  .waitlist-benefit-text strong {
+    color: var(--white);
+    display: block;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .waitlist-form {
+    display: flex;
+    gap: 10px;
+    max-width: 460px;
+    margin: 0 auto;
+  }
+  .waitlist-form-group {
+    flex: 1;
+    text-align: left;
+  }
+  .waitlist-input {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .waitlist-input::placeholder { color: var(--gray2); }
+  .waitlist-input:focus { border-color: var(--purple2); box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+  .waitlist-input.error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
+  .waitlist-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 8px;
+    text-align: left;
+    min-height: 16px;
+  }
+  .waitlist-submit {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    border: none;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .waitlist-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .waitlist-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .waitlist-spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .waitlist-fineprint {
+    font-size: 11px;
+    color: var(--gray2);
+    margin-top: 16px;
+  }
+  .waitlist-success {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0 4px;
+  }
+  .waitlist-success.visible { display: flex; animation: fadeUp 0.4s ease; }
+  .waitlist-success-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--green);
+  }
+  .waitlist-success-title { font-size: 18px; font-weight: 800; }
+  .waitlist-success-desc { font-size: 13px; color: var(--gray2); max-width: 360px; }
+  .waitlist-form-wrap.hidden { display: none; }
+
+  @media (max-width: 600px) {
+    .waitlist-benefits { grid-template-columns: 1fr; }
+    .waitlist-form { flex-direction: column; }
+    .waitlist-card { padding: 36px 22px; }
+  }
+
+  /* FOOTER */
+  footer {
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 60px 24px 24px;
+  }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+    gap: 40px;
+    max-width: 1100px;
+    margin: 0 auto 48px;
+  }
+  .footer-brand .nav-logo { font-size: 22px; margin-bottom: 8px; display: block; }
+  .footer-tagline { font-size: 13px; color: var(--gray2); margin-bottom: 16px; }
+  .footer-socials { display: flex; gap: 12px; margin-bottom: 0; }
+  .social-icon {
+    width: 36px; height: 36px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    text-decoration: none;
+    color: var(--gray);
+  }
+  .social-icon:hover { border-color: var(--purple2); color: var(--purple2); }
+  .footer-col-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray2); margin-bottom: 16px; }
+  .footer-links { list-style: none; }
+  .footer-links li { margin-bottom: 10px; }
+  .footer-links a { text-decoration: none; font-size: 13px; color: var(--gray); transition: color 0.2s; }
+  .footer-links a:hover { color: var(--white); }
+  .newsletter-input {
+    display: flex;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+  .newsletter-input input {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    outline: none;
+  }
+  .newsletter-input input::placeholder { color: var(--gray2); }
+  .newsletter-input button {
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    border: none;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: white;
+    font-size: 16px;
+    transition: opacity 0.2s;
+  }
+  .newsletter-input button:hover { opacity: 0.85; }
+  .footer-bottom {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--gray2);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-bottom a { color: var(--gray2); text-decoration: none; transition: color 0.2s; }
+  .footer-bottom a:hover { color: var(--white); }
+
+  /* COOKIE */
+  .cookie-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--card2);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    z-index: 200;
+    font-size: 13px;
+    color: var(--gray);
+    flex-wrap: wrap;
+  }
+  .cookie-text a { color: var(--purple2); text-decoration: none; }
+  .cookie-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .cookie-manage {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--gray);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .cookie-accept {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, var(--purple), var(--purple2));
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .cookie-icon { font-size: 18px; flex-shrink: 0; }
+
+  /* SCROLL ANIMATIONS */
+  @media (prefers-reduced-motion: reduce) {
+    .dash-card, .testi-card, .stat-card { opacity: 1; transform: none; }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .dash-grid, .testi-grid, .stats-grid { grid-template-columns: 1fr 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+    .how-grid { grid-template-columns: 1fr; }
+    .how-grid::before { display: none; }
+    .footer-top { grid-template-columns: 1fr 1fr; }
+    .float-tag { display: none; }
+    .hero-demo { grid-template-columns: 1fr; }
+    .footer-top { grid-template-columns: 1fr 1fr; }
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+  }
+  @media (max-width: 600px) {
+    .dash-grid, .testi-grid, .stats-grid { grid-template-columns: 1fr; }
+    .footer-top { grid-template-columns: 1fr; }
+    .platforms-inner { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- STARS -->
+<div class="stars" id="stars"></div>
+
+<div class="mouse-glow"></div>
+<div class="mouse-glow-2"></div>
+
+<div id="preloader">
+  <div class="preloader-content">
+    <div class="logo">DM<span>ten</span></div>
+    <div class="loading-text">Loading...</div>
+    <div class="bars">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="navbar">
+  <div class="nav-logo">DM<span>ten</span><sup></sup></div>
+  <ul class="nav-links">
+    <li class="dropdown">
+      <span class="dropdown-trigger">Product <span class="dropdown-arrow">⌄</span></span>
+      <div class="dropdown-menu">
+        <a class="dropdown-item" href="#score">
+          <span class="dropdown-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-target"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z"/><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span>
+          <span>
+            <span class="dropdown-item-title">AI DM Score</span><br>
+            <span class="dropdown-item-desc">A 0–100 score that rates how effective your message is before you send it.</span>
+          </span>
+        </a>
+        <a class="dropdown-item" href="#rewrite">
+          <span class="dropdown-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-sparkles"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></span>
+          <span>
+            <span class="dropdown-item-title">AI Rewrite</span><br>
+            <span class="dropdown-item-desc">Instantly turns a flat message into a warmer, more compelling version.</span>
+          </span>
+        </a>
+        <a class="dropdown-item" href="#tone">
+          <span class="dropdown-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-theater"><path d="M2 10s3-3 3-8"/><path d="M22 10s-3-3-3-8"/><path d="M10 2c0 4.4-3.6 8-8 8"/><path d="M14 2c0 4.4 3.6 8 8 8"/><path d="M2 10s2 2 2 5"/><path d="M22 10s-2 2-2 5"/><path d="M8 15h8"/><path d="M2 22v-1a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v1"/></svg></span>
+          <span>
+            <span class="dropdown-item-title">Tone Analyzer</span><br>
+            <span class="dropdown-item-desc">Breaks down how friendly, confident, and professional your DM reads.</span>
+          </span>
+        </a>
+        <a class="dropdown-item" href="#reply">
+          <span class="dropdown-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-bar-chart-3"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+          <span>
+            <span class="dropdown-item-title">Reply Predictor</span><br>
+            <span class="dropdown-item-desc">Estimates your reply likelihood based on similar past conversations.</span>
+          </span>
+        </a>
+        <a class="dropdown-item" href="#time">
+          <span class="dropdown-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+          <span>
+            <span class="dropdown-item-title">Best Time to Send</span><br>
+            <span class="dropdown-item-desc">Tells you exactly when your recipient is most likely to be active.</span>
+          </span>
+        </a>
+      </div>
+    </li>
+     
+    <li><a href="#features">Features</a></li>
+    <!-- <li><a href="#how">How It Works</a></li> -->
+    <li><a href="#pricing">Pricing</a></li>
+    <!-- <li><a href="#faq">About</a></li> -->
+    <li><a href="#faq">Blog</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a class="nav-signin" href="#waitlist">Sign In</a>
+    <a class="btn-primary" href="#waitlist">Join Waitlist →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="pill-badge">AI Communication Assistant</div>
+  <h1 class="hero-headline">
+    The Smartest Way<br>to Start a <span class="gradient">Conversation</span>
+  </h1>
+  <p class="hero-sub">Better DMs. Better Connections.</p>
+  <p class="hero-desc">Transform awkward messages into confident conversations with AI-powered feedback, personalized suggestions, and smarter rewrites before you hit Send.</p>
+
+  <div class="hero-demo-wrap">
+    <div class="float-tag tl"><div class="dot"></div> More personal opening</div>
+    <div class="float-tag ml"><div class="dot"></div> Stronger call to action</div>
+    <div class="float-tag tr"><div class="dot"></div> Better ending</div>
+    <div class="float-tag mr"><div class="dot"></div> Clearer &amp; warmer tone</div>
+
+    <div class="hero-demo">
+      <!-- Left: DM Input -->
+      <div>
+        <div class="demo-panel-label">Your DM</div>
+        <div class="demo-to">
+          <div class="insta-icon"></div>
+          To: Instagram Creator Sarah ▾
+        </div>
+        <div
+          class="demo-message-input"
+          id="demoInput"
+          contenteditable="true"
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Type or paste your direct message here"
+          data-placeholder="Type or paste the message you want to send…"
+        >Hi Sarah,<br><br>I've been following your work for a while and really admire how you create so much value for your audience.<br><br>I had a quick question about your content strategy. Would love your thoughts!</div>
+        <div class="demo-footer">
+          <span class="reset-link" id="resetDemo">Reset example</span>
+          <span class="demo-count"><span id="charCount">112</span> / 2000</span>
+          <button class="analyze-btn" id="analyzeBtn" aria-label="Analyze message">
+            <span id="analyzeBtnIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-chevron-right"><path d="m9 18 6-6-6-6"/></svg></span>
+          </button>
+        </div>
+      </div>
+      <!-- Right: AI Analysis -->
+      <div>
+        <div class="demo-panel-label">AI Analysis</div>
+        <div class="analysis-state">
+
+          <!-- Idle state -->
+          <div class="analysis-idle" id="analysisIdle">
+            <div class="analysis-idle-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-pen"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.986L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg></div>
+            <div>Write or edit a message,<br>then hit <strong style="color:var(--white)">Analyze</strong> to see your score.</div>
+          </div>
+
+          <!-- Loading state -->
+          <div class="analysis-loading hidden" id="analysisLoading">
+            <div class="scan-ring"></div>
+            <div class="loading-step" id="loadingStep">Reading your message…</div>
+            <div class="loading-progress-track"><div class="loading-progress-fill" id="loadingFill"></div></div>
+          </div>
+
+          <!-- Result state -->
+          <div class="analysis-result hidden" id="analysisResult">
+            <div class="score-ring" id="scoreRing">
+              <div class="score-num" id="heroScore">0</div>
+              <div class="score-denom">/100</div>
+            </div>
+            <div class="analysis-row"><span class="analysis-label">Reply Chance</span><span class="green" id="replyChanceVal">High</span></div>
+            <div class="analysis-row"><span class="analysis-label">Tone</span><span class="blue-text" id="toneVal">Friendly</span></div>
+            <div class="analysis-row"><span class="analysis-label">Confidence</span><span class="green" id="confidenceVal">Excellent</span></div>
+            <div class="tips-bar" id="tipsBar">✓ <span id="tipsCount">10</span> Personalized Tips Ready ▾</div>
+            <div class="rewrite-reveal" id="rewriteReveal" style="display:none;">
+              <div class="rewrite-reveal-label">Suggested rewrite</div>
+              <div id="rewriteText"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- FEATURE DASHBOARD -->
+<section class="dashboard" id="features">
+  <div class="dash-grid">
+
+    <!-- DM Score -->
+    <div class="dash-card" id="score">
+      <div class="dash-card-label">DM Score</div>
+      <div><span class="score-big" id="dashScore">0</span><span class="score-denom2">/100</span></div>
+      <div class="excellent">Excellent</div>
+      <div class="mini-graph">
+        <svg viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="0,50 30,40 60,45 90,25 120,30 150,15 180,20 200,10"
+            stroke="#7c3aed" stroke-width="2" fill="none" stroke-linejoin="round"/>
+          <circle cx="200" cy="10" r="3" fill="#9f5bff"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray2)">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span style="color:var(--purple2)">Sun</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Review -->
+    <div class="dash-card">
+      <div class="dash-card-label">AI Review</div>
+      <div class="check-item">
+        <span class="check-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div><div class="check-title">Strong personal opening</div><div class="check-desc">Grabs attention instantly</div></div>
+      </div>
+      <div class="check-item">
+        <span class="check-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div><div class="check-title">Clear value statement</div><div class="check-desc">Shows you understand their work</div></div>
+      </div>
+      <div class="check-item">
+        <span class="check-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div><div class="check-title">Specific question</div><div class="check-desc">Increases reply likelihood</div></div>
+      </div>
+      <div class="check-item">
+        <span class="check-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div><div class="check-title">Friendly &amp; respectful tone</div><div class="check-desc">Creates a positive first impression</div></div>
+      </div>
+    </div>
+
+    <!-- Rewrite Preview -->
+    <div class="dash-card" id="rewrite">
+      <div class="dash-card-label">Rewrite Preview</div>
+      <div class="rewrite-label">Before</div>
+      <div class="rewrite-box">I've been following your work for a while and really admire it.</div>
+      <div class="rewrite-label">After</div>
+      <div class="rewrite-box after">Hi Sarah, I've admired your work for a while and love how you create so much value for your audience. I had a quick question about your content strategy — would love your thoughts! <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-sparkles"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></div>
+    </div>
+
+    <!-- Tone Analysis -->
+    <div class="dash-card" id="tone">
+      <div class="dash-card-label">Tone Analysis</div>
+      <div class="radar-wrap">
+        <svg width="200" height="170" viewBox="-20 0 200 170">
+          <polygon points="80,10 150,60 125,140 35,140 10,60" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+          <polygon points="80,30 130,65 110,125 50,125 30,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          <polygon points="80,50 110,70 95,110 65,110 50,70" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <polygon points="80,22 138,63 118,132 42,132 22,63" fill="rgba(124,58,237,0.25)" stroke="#9f5bff" stroke-width="1.5"/>
+          <text x="80" y="8" text-anchor="middle" font-size="10" fill="#94a3b8">Friendly</text>
+          <text x="158" y="63" text-anchor="start" font-size="10" fill="#94a3b8">Enthusiastic</text>
+          <text x="130" y="155" text-anchor="middle" font-size="10" fill="#94a3b8">Professional</text>
+          <text x="30" y="155" text-anchor="middle" font-size="10" fill="#94a3b8">Confident</text>
+          <text x="2" y="63" text-anchor="end" font-size="10" fill="#94a3b8">Respectful</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Reply Chance -->
+    <div class="dash-card" id="reply">
+      <div class="dash-card-label">Reply Chance</div>
+      <div class="reply-high">High <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-trending-up"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+      <div class="bar-row">
+        <div class="bar" style="height:20%"></div>
+        <div class="bar" style="height:30%"></div>
+        <div class="bar" style="height:25%"></div>
+        <div class="bar" style="height:45%"></div>
+        <div class="bar" style="height:40%"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:55%"></div>
+        <div class="bar" style="height:70%"></div>
+        <div class="bar" style="height:80%"></div>
+        <div class="bar active" style="height:100%"></div>
+      </div>
+      <div class="reply-desc">People like Sarah usually reply to messages like this.</div>
+    </div>
+
+    <!-- Suggested + Best Time -->
+    <div class="dash-card" id="time">
+      <div class="suggest-item">
+        <div>
+          <span class="suggest-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-lightbulb"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>
+          <div class="suggest-title">Suggested Improvements</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:4px;">Add a specific detail about their content to make it more personal.</div>
+        </div>
+        <span style="color:var(--gray2);">→</span>
+      </div>
+      <div class="suggest-item">
+        <div>
+          <span class="suggest-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-clock"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+          <div class="suggest-title">Best Time to Send</div>
+          <div class="suggest-val">Tomorrow, 10:00 AM</div>
+          <div class="suggest-sub">When they're most active.</div>
+        </div>
+        <span style="color:var(--gray2);">→</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- TESTIMONIALS / PRE-LAUNCH PREVIEW -->
+<section class="testimonials">
+  <h2 class="section-title">Be Among the First to Share Your Story</h2>
+  <div class="testi-grid">
+    <div class="testi-card">
+      <div class="quote-mark">"</div>
+      <p class="testi-text">Real customer stories will appear here after launch. We're holding this spot for the early adopters who help shape DMten from day one.</p>
+      <div class="testi-author">
+        <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div>
+          <div class="author-name">Coming Soon</div>
+          <div class="author-role">Example Testimonial</div>
+          <div class="author-followers">Preview layout — not a real review</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card">
+      <div class="quote-mark">"</div>
+      <p class="testi-text">This card is reserved for one of our first 500 founding users. Join the waitlist now for a chance to be featured here at launch.</p>
+      <div class="testi-author">
+        <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div>
+          <div class="author-name">Early Access Opening Soon</div>
+          <div class="author-role">Example Testimonial</div>
+          <div class="author-followers">Preview layout — not a real review</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi-card">
+      <div class="quote-mark">"</div>
+      <p class="testi-text">We believe in earning trust, not faking it. No testimonial here is genuine yet — but yours could be the first once DMten goes live.</p>
+      <div class="testi-author">
+        <div class="avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div>
+          <div class="author-name">Join the Waitlist</div>
+          <div class="author-role">Example Testimonial</div>
+          <div class="author-followers">Preview layout — not a real review</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-trending-up"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+      <div>
+        <div class="stat-num">94%</div>
+        <div class="stat-label">Average confidence improvement</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-sparkles"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></div>
+      <div>
+        <div class="stat-num">10</div>
+        <div class="stat-label">Personalized suggestions per message</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-zap"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div>
+      <div>
+        <div class="stat-num">&lt;2 sec</div>
+        <div class="stat-label">Average analysis time</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="platforms">
+  <div class="platforms-inner">
+    <div class="platform-label">Trusted by users on</div>
+    <div class="platform-logos">
+      <div class="platform-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg> Instagram</div>
+      <div class="platform-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-briefcase"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> LinkedIn</div>
+      <div class="platform-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>  (Twitter) </div>
+      <div class="platform-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-gamepad-2"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg> Discord</div>
+      <div class="platform-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-message-circle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WhatsApp</div>
+    </div>
+    <div>
+      <div class="works-text">Works wherever conversations begin.</div>
+      <div class="works-sub">Platform support only. Not affiliated.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="pricing-header">
+    <h2 class="section-title" style="margin-bottom:12px;">Simple pricing. Powerful results.</h2>
+    <div class="pricing-toggle">
+      <button class="toggle-btn active" id="monthlyBtn" onclick="setPricing('monthly')">Monthly</button>
+      <button class="toggle-btn" id="annualBtn" onclick="setPricing('annual')">Annual <span class="save-badge">20% OFF</span></button>
+    </div>
+  </div>
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="price-plan">Free</div>
+      <div class="price-amount">$0 <span>/month</span></div>
+      <ul class="price-features">
+        <li>Basic AI review</li>
+        <li>Tone analysis</li>
+        <li>5 personalized tips per day</li>
+        <li>Limited rewrites</li>
+      </ul>
+      <button class="btn-outline js-scroll-waitlist">Join the Waitlist</button>
+    </div>
+    <div class="price-card popular">
+      <div class="popular-badge">Most Popular</div>
+      <div class="price-plan">Pro</div>
+      <div class="price-amount" id="proPrice">$9 <span>/month</span></div>
+      <ul class="price-features">
+        <li>Unlimited AI analysis</li>
+        <li>10 personalized tips per message</li>
+        <li>Advanced rewrites</li>
+        <li>Best time to send</li>
+        <li>Priority support</li>
+        <li>Platform optimization</li>
+      </ul>
+      <button class="btn-purple js-scroll-waitlist">Join the Waitlist →</button>
+    </div>
+  </div>
+</section>
+
+<!-- WAITLIST -->
+<section class="waitlist" id="waitlist">
+  <div class="waitlist-inner">
+    <div class="waitlist-card">
+      <div class="waitlist-badge">Launching Soon</div>
+      <h2 class="waitlist-title">Get Early Access to <span class="gradient">DMten</span></h2>
+      <p class="waitlist-desc">DMten isn't public yet — but you can be one of the first to try it. Join the waitlist and we'll let you know the moment doors open.</p>
+
+      <div class="waitlist-benefits">
+        <div class="waitlist-benefit">
+          <span class="waitlist-benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-rocket"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span>
+          <div class="waitlist-benefit-text"><strong>Priority Access</strong>Skip the line when we launch publicly.</div>
+        </div>
+        <div class="waitlist-benefit">
+          <span class="waitlist-benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+          <div class="waitlist-benefit-text"><strong>First 500 Founders</strong>Be recognized as a founding user.</div>
+        </div>
+        <div class="waitlist-benefit">
+          <span class="waitlist-benefit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-gift"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></span>
+          <div class="waitlist-benefit-text"><strong>Launch Rewards</strong>Unlock exclusive perks at release.</div>
+        </div>
+      </div>
+
+      <div class="waitlist-form-wrap" id="waitlistFormWrap">
+        <form class="waitlist-form" id="waitlistForm" novalidate>
+          <div class="waitlist-form-group">
+            <input
+              type="email"
+              class="waitlist-input"
+              id="waitlistEmail"
+              placeholder="you@example.com"
+              aria-label="Email address"
+              autocomplete="email"
+            >
+            <div class="waitlist-error" id="waitlistError"></div>
+          </div>
+          <button type="submit" class="waitlist-submit" id="waitlistSubmitBtn">
+            <span id="waitlistSubmitText">Join Waitlist</span>
+          </button>
+        </form>
+        <div class="waitlist-fineprint">No spam. Just one email when DMten is ready for you.</div>
+      </div>
+
+      <div class="waitlist-success" id="waitlistSuccess">
+        <div class="waitlist-success-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-check"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="waitlist-success-title" id="waitlistSuccessTitle">You're on the list! 🎉</div>
+        <div class="waitlist-success-desc" id="waitlistSuccessDesc">Thanks for your interest in DMten — we'll email you as soon as early access opens.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <h2 class="section-title">Frequently asked questions</h2>
+  <div class="faq-list">
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How does DMten work?
+        <span class="faq-chevron">⌄</span>
+      </button>
+      <div class="faq-a">DMten uses advanced AI to analyze your direct messages before you send them. Paste your message, and our AI instantly evaluates tone, clarity, reply likelihood, and provides personalized suggestions to improve your outreach — all in under 2 seconds.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Which platforms are supported?
+        <span class="faq-chevron">⌄</span>
+      </button>
+      <div class="faq-a">DMten works with messages intended for Instagram, LinkedIn, X (Twitter), Discord, and WhatsApp. You paste your message into DMten, get feedback, then send it through your preferred platform. We are not affiliated with any of these platforms.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Is my data private and secure?
+        <span class="faq-chevron">⌄</span>
+      </button>
+      <div class="faq-a">Absolutely. We take privacy seriously. Your messages are processed in real-time and never stored on our servers. We use end-to-end encryption for all data in transit. We will never sell or share your personal data with third parties.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How is the DM Score calculated?
+        <span class="faq-chevron">⌄</span>
+      </button>
+      <div class="faq-a">The DM Score (0–100) is calculated based on multiple factors including message clarity, personalization, tone appropriateness, call-to-action strength, length optimization, and historical reply rate data from similar messages in our anonymized dataset.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Is there a free trial for Pro?
+        <span class="faq-chevron">⌄</span>
+      </button>
+      <div class="faq-a">Yes! Every new user gets a full 7-day free trial of the Pro plan — no credit card required. You'll have access to unlimited analysis, all 10 personalized tips, advanced rewrites, and the Best Time to Send feature during your trial.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <h2 class="section-title">How DMten Works</h2>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-num"><span class="how-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span></div>
+      <div class="how-title">Paste your DM</div>
+      <div class="how-desc">Add the message you want to analyze. Works for any platform — Instagram, LinkedIn, Discord, and more.</div>
+    </div>
+    <div class="how-card">
+      <div class="how-num"><span class="how-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-sparkles"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></span></div>
+      <div class="how-title">AI Analyzes It</div>
+      <div class="how-desc">Our AI evaluates tone, clarity, and effectiveness in under 2 seconds and gives you a full breakdown.</div>
+    </div>
+    <div class="how-card">
+      <div class="how-num"><span class="how-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-rocket"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span></div>
+      <div class="how-title">Send with Confidence</div>
+      <div class="how-desc">Apply suggestions and start better conversations. Watch your reply rate climb week over week.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <span class="nav-logo">DM<span>ten</span><sup>+</sup></span>
+      <div class="footer-tagline">Better DMs.<br>Better Connections.</div>
+      <div class="footer-socials">
+        <a class="social-icon" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></a>
+        <a class="social-icon" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></a>
+        <a class="social-icon" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-briefcase"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></a>
+        <a class="social-icon" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-music2"><circle cx="8" cy="18" r="4"/><path d="M12 18V2l7 4"/></svg></a>
+        <a class="social-icon" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-play-circle"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-title">Product</div>
+      <ul class="footer-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how">How It Works</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#waitlist" class="js-scroll-waitlist-link">Updates</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Company</div>
+      <ul class="footer-links">
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Careers</a></li>
+        <li><a href="#">Press</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Resources</div>
+      <ul class="footer-links">
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Guides</a></li>
+        <li><a href="#">Templates</a></li>
+        <li><a href="#">API</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Stay in the loop</div>
+      <div style="font-size:12px;color:var(--gray2);margin-bottom:8px;">Get tips to write better DMs and build stronger connections.</div>
+      <div class="newsletter-input">
+        <input type="email" placeholder="Enter your email">
+        <button id="newsletterBtn">→</button>
+        <div id="newsletterMsg" style="font-size:11px;margin-top:8px;color:var(--gray2);"></div>
+      </div>
+      <div style="margin-top:20px;">
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 DMten. All rights reserved.</span>
+    <div style="display:flex;gap:20px;">
+      <a href="#">Terms of Service</a>
+      <a href="#">Privacy Policy</a>
+    </div>
+  </div>
+</footer>
+
+<!-- COOKIE BAR -->
+<div class="cookie-bar" id="cookieBar">
+  <span class="cookie-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-cookie"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg></span>
+  <span class="cookie-text">We use cookies to enhance your experience. By continuing, you agree to our <a href="#">Privacy Policy</a>.</span>
+  <div class="cookie-actions">
+    <button class="cookie-manage" onclick="document.getElementById('cookieBar').style.display='none'">Manage Preferences</button>
+    <button class="cookie-accept" onclick="document.getElementById('cookieBar').style.display='none'">Accept All</button>
+  </div>
+</div>
+
+<script>
+  // Stars
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2 + 0.5;
+    s.style.cssText = `
+      width:${size}px;height:${size}px;
+      top:${Math.random()*100}%;left:${Math.random()*100}%;
+      --d:${2+Math.random()*4}s;
+      animation-delay:${Math.random()*4}s;
+    `;
+    starsEl.appendChild(s);
+  }
+
+  // Score counter animation
+  function animateCount(el, target, duration = 1200) {
+    let start = 0;
+    const step = target / (duration / 16);
+    const timer = setInterval(() => {
+      start = Math.min(start + step, target);
+      el.textContent = Math.floor(start);
+      if (start >= target) clearInterval(timer);
+    }, 16);
+  }
+
+  // Hero score: now triggered by the interactive demo (see below), not on page load.
+
+  // Intersection Observer for scroll animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+        // Trigger dash score counter
+        if (entry.target.classList.contains('dash-card') && entry.target.querySelector('#dashScore')) {
+          setTimeout(() => animateCount(document.getElementById('dashScore'), 94, 1200), 200);
+        }
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.dash-card, .testi-card, .stat-card').forEach(el => observer.observe(el));
+
+  // FAQ toggle
+  function toggleFaq(btn) {
+    const answer = btn.nextElementSibling;
+    const chevron = btn.querySelector('.faq-chevron');
+    const isOpen = answer.classList.contains('open');
+    document.querySelectorAll('.faq-a').forEach(a => a.classList.remove('open'));
+    document.querySelectorAll('.faq-chevron').forEach(c => c.classList.remove('open'));
+    if (!isOpen) {
+      answer.classList.add('open');
+      chevron.classList.add('open');
+    }
+  }
+
+  // Pricing toggle
+  function setPricing(mode) {
+    const monthlyBtn = document.getElementById('monthlyBtn');
+    const annualBtn = document.getElementById('annualBtn');
+    const proPrice = document.getElementById('proPrice');
+    if (mode === 'monthly') {
+      monthlyBtn.classList.add('active');
+      annualBtn.classList.remove('active');
+      proPrice.innerHTML = '$9 <span>/month</span>';
+    } else {
+      annualBtn.classList.add('active');
+      monthlyBtn.classList.remove('active');
+      proPrice.innerHTML = '$7 <span>/month, billed annually</span>';
+    }
+  }
+
+  // ===== INTERACTIVE HERO DEMO =====
+  (function () {
+    const input = document.getElementById('demoInput');
+    const charCount = document.getElementById('charCount');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const analyzeBtnIcon = document.getElementById('analyzeBtnIcon');
+    const resetLink = document.getElementById('resetDemo');
+
+    const idleEl = document.getElementById('analysisIdle');
+    const loadingEl = document.getElementById('analysisLoading');
+    const resultEl = document.getElementById('analysisResult');
+    const loadingStep = document.getElementById('loadingStep');
+    const loadingFill = document.getElementById('loadingFill');
+
+    const scoreRing = document.getElementById('scoreRing');
+    const heroScore = document.getElementById('heroScore');
+    const replyChanceVal = document.getElementById('replyChanceVal');
+    const toneVal = document.getElementById('toneVal');
+    const confidenceVal = document.getElementById('confidenceVal');
+    const tipsCount = document.getElementById('tipsCount');
+    const rewriteReveal = document.getElementById('rewriteReveal');
+    const rewriteText = document.getElementById('rewriteText');
+
+    const defaultHTML = input.innerHTML;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function getPlainText() {
+      return (input.innerText || '').trim();
+    }
+
+    function updateCharCount() {
+      const len = getPlainText().length;
+      charCount.textContent = Math.min(len, 2000);
+    }
+    input.addEventListener('input', updateCharCount);
+    updateCharCount();
+
+    resetLink.addEventListener('click', () => {
+      input.innerHTML = defaultHTML;
+      updateCharCount();
+      showState('idle');
+    });
+
+    function showState(state) {
+      idleEl.classList.toggle('hidden', state !== 'idle');
+      loadingEl.classList.toggle('hidden', state !== 'loading');
+      resultEl.classList.toggle('hidden', state !== 'result');
+      resultEl.classList.toggle('visible', state === 'result');
+    }
+
+    // Lightweight heuristics so the "analysis" reacts sensibly to real input,
+    // blended with light randomization so repeated clicks feel alive.
+    function analyzeText(text) {
+      const len = text.length;
+      const hasGreeting = /\b(hi|hey|hello|dear)\b/i.test(text);
+      const hasQuestion = /\?/.test(text);
+      const hasName = /\b[A-Z][a-z]+\b/.test(text.slice(0, 40));
+      const exclam = (text.match(/!/g) || []).length;
+      const emojiCount = (text.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).length;
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+      let score = 55;
+      if (hasGreeting) score += 8;
+      if (hasQuestion) score += 10;
+      if (hasName) score += 6;
+      if (wordCount >= 15 && wordCount <= 80) score += 12;
+      if (wordCount > 120) score -= 10;
+      if (wordCount < 6) score -= 15;
+      if (exclam >= 1 && exclam <= 2) score += 4;
+      if (exclam > 3) score -= 6;
+      if (emojiCount >= 1 && emojiCount <= 2) score += 3;
+      if (len === 0) score = 0;
+
+      // small randomized jitter so it doesn't feel too deterministic
+      score += Math.floor(Math.random() * 7) - 3;
+      score = Math.max(28, Math.min(98, Math.round(score)));
+
+      let reply, confidence;
+      if (score >= 80) { reply = 'High'; confidence = 'Excellent'; }
+      else if (score >= 60) { reply = 'Moderate'; confidence = 'Good'; }
+      else { reply = 'Low'; confidence = 'Needs Work'; }
+
+      const tones = hasGreeting && hasQuestion
+        ? ['Friendly', 'Warm', 'Approachable']
+        : exclam > 2
+          ? ['Enthusiastic', 'Energetic']
+          : wordCount < 8
+            ? ['Abrupt', 'Casual']
+            : ['Friendly', 'Professional', 'Confident'];
+      const tone = tones[Math.floor(Math.random() * tones.length)];
+
+      const tips = Math.max(4, Math.min(10, 4 + Math.floor(score / 12)));
+
+      return { score, reply, confidence, tone, tips, wordCount, hasGreeting, hasQuestion };
+    }
+
+    function buildRewrite(text, analysis) {
+      if (!text) return '';
+      // Grab a short first clause/name reference, then offer a generic
+      // polished restructuring — kept generic on purpose since this is a
+      // presentational demo, not a real generation call.
+      const firstSentence = text.split(/[.!?\n]/)[0].trim();
+      const opener = analysis.hasGreeting ? '' : 'Hi! ';
+      const closer = analysis.hasQuestion
+        ? ' Would love to hear your thoughts!'
+        : ' Let me know what you think — no rush at all!';
+      let core = firstSentence.length > 4 ? firstSentence : 'I wanted to reach out';
+      if (core.length > 140) core = core.slice(0, 140).trim() + '…';
+      return `${opener}${core}. I think there could be a great fit here, and I'd love to connect.${closer}`;
+    }
+
+    function typeText(el, text, speed = 14) {
+      el.textContent = '';
+      let i = 0;
+      const cursor = document.createElement('span');
+      cursor.className = 'typing-cursor';
+      el.appendChild(cursor);
+      const timer = setInterval(() => {
+        if (i < text.length) {
+          cursor.insertAdjacentText('beforebegin', text[i]);
+          i++;
+        } else {
+          clearInterval(timer);
+          cursor.remove();
+        }
+      }, speed);
+    }
+
+    function animateCountLocal(el, target, duration) {
+      let start = 0;
+      const step = target / Math.max(duration / 16, 1);
+      const timer = setInterval(() => {
+        start = Math.min(start + step, target);
+        el.textContent = Math.floor(start);
+        if (start >= target) clearInterval(timer);
+      }, 16);
+    }
+
+    const loadingSteps = [
+      'Reading your message…',
+      'Scoring tone & clarity…',
+      'Estimating reply chance…',
+      'Drafting a sharper rewrite…'
+    ];
+
+    function runLoadingSequence(onDone) {
+      showState('loading');
+      loadingFill.style.width = '0%';
+      let stepIndex = 0;
+      loadingStep.textContent = loadingSteps[0];
+
+      const totalDuration = reducedMotion ? 400 : 1900;
+      const stepDuration = totalDuration / loadingSteps.length;
+
+      loadingFill.style.transition = `width ${totalDuration}ms ease`;
+      requestAnimationFrame(() => { loadingFill.style.width = '100%'; });
+
+      const stepTimer = setInterval(() => {
+        stepIndex++;
+        if (stepIndex < loadingSteps.length) {
+          loadingStep.style.opacity = '0';
+          setTimeout(() => {
+            loadingStep.textContent = loadingSteps[stepIndex];
+            loadingStep.style.opacity = '1';
+          }, 120);
+        }
+      }, stepDuration);
+
+      setTimeout(() => {
+        clearInterval(stepTimer);
+        onDone();
+      }, totalDuration + 150);
+    }
+
+    function revealResult(text) {
+      const analysis = analyzeText(text);
+      showState('result');
+      heroScore.textContent = '0';
+      scoreRing.style.boxShadow = '0 0 20px rgba(124,58,237,0.4)';
+
+      animateCountLocal(heroScore, analysis.score, 1100);
+
+      replyChanceVal.textContent = analysis.reply;
+      replyChanceVal.className = analysis.reply === 'Low' ? '' : 'green';
+      if (analysis.reply === 'Moderate') replyChanceVal.className = 'blue-text';
+
+      toneVal.textContent = analysis.tone;
+      confidenceVal.textContent = analysis.confidence;
+      confidenceVal.className = analysis.confidence === 'Needs Work' ? '' : 'green';
+
+      tipsCount.textContent = analysis.tips;
+
+      rewriteReveal.style.display = 'block';
+      const rewrite = buildRewrite(text, analysis);
+      if (reducedMotion) {
+        rewriteText.textContent = rewrite;
+      } else {
+        setTimeout(() => typeText(rewriteText, rewrite, 12), 300);
+      }
+    }
+
+    function setButtonLoading(isLoading) {
+      analyzeBtn.disabled = isLoading;
+      analyzeBtnIcon.innerHTML = isLoading ? '<span class="spinner"></span>' : '➤';
+    }
+
+    analyzeBtn.addEventListener('click', () => {
+      const text = getPlainText();
+      if (!text) {
+        input.focus();
+        return;
+      }
+      setButtonLoading(true);
+      runLoadingSequence(() => {
+        setButtonLoading(false);
+        revealResult(text);
+      });
+    });
+
+    // Allow Enter inside the editable box without submitting anything weird,
+    // and Ctrl/Cmd+Enter as a keyboard shortcut to trigger Analyze.
+    input.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        analyzeBtn.click();
+      }
+    });
+  })();
+
+  // ===== GLOBAL "JOIN WAITLIST" CTA ROUTING =====
+  // Any element with .js-scroll-waitlist (buttons added without href) or
+  // an <a> pointing at #waitlist smooth-scrolls to the waitlist section.
+  (function () {
+    function scrollToWaitlist(e) {
+      if (e) e.preventDefault();
+      const target = document.getElementById('waitlist');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.querySelectorAll('.js-scroll-waitlist, .js-scroll-waitlist-link, a[href="#waitlist"]').forEach(el => {
+      el.addEventListener('click', scrollToWaitlist);
+    });
+  })();
+
+  // ===== WAITLIST FORM (Firestore-backed, with duplicate-email prevention) =====
+  (function () {
+    const form = document.getElementById('waitlistForm');
+    const emailInput = document.getElementById('waitlistEmail');
+    const errorEl = document.getElementById('waitlistError');
+    const submitBtn = document.getElementById('waitlistSubmitBtn');
+    const submitText = document.getElementById('waitlistSubmitText');
+    const formWrap = document.getElementById('waitlistFormWrap');
+    const successEl = document.getElementById('waitlistSuccess');
+    const successTitleEl = document.getElementById('waitlistSuccessTitle');
+    const successDescEl = document.getElementById('waitlistSuccessDesc');
+
+    const COPY = {
+      newSignup: {
+        title: "You're on the list! 🎉",
+        desc: "Thanks for your interest in DMten — we'll email you as soon as early access opens."
+      },
+      duplicate: {
+        title: "You're already on the waitlist! 🎉",
+        desc: "That email is already registered — we'll be in touch as soon as early access opens."
+      }
+    };
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function setError(message) {
+      errorEl.textContent = message || '';
+      emailInput.classList.toggle('error', !!message);
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      submitText.innerHTML = isLoading ? '<span class="waitlist-spinner"></span>' : 'Join Waitlist';
+    }
+
+    function showSuccess(kind) {
+      const copy = COPY[kind] || COPY.newSignup;
+      successTitleEl.textContent = copy.title;
+      successDescEl.textContent = copy.desc;
+      formWrap.classList.add('hidden');
+      successEl.classList.add('visible');
+    }
+
+    emailInput.addEventListener('input', () => setError(''));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rawEmail = emailInput.value.trim();
+
+      if (!rawEmail) {
+        setError('Please enter your email address.');
+        emailInput.focus();
+        return;
+      }
+      if (!isValidEmail(rawEmail)) {
+        setError('Please enter a valid email address.');
+        emailInput.focus();
+        return;
+      }
+
+      // Normalize: trim + lowercase, so "User@gmail.com" and "user@gmail.com"
+      // are treated as the same address for duplicate-checking and storage.
+      const email = rawEmail.toLowerCase();
+
+      setError('');
+      setLoading(true);
+
+      try {
+        // window.dmtenFirebaseReady is set by the Firebase init module in
+        // <head>. Awaiting it guarantees `db` exists before we try to query
+        // or write, even if this script happens to run before that module
+        // finishes loading.
+        if (!window.dmtenFirebaseReady) {
+          throw new Error('Firebase did not initialize (window.dmtenFirebaseReady is missing).');
+        }
+        const { db, collection, addDoc, serverTimestamp, query, where, getDocs } =
+          await window.dmtenFirebaseReady;
+
+        const waitlistRef = collection(db, 'waitlist');
+
+        // Look for an existing document with this (normalized) email before
+        // writing anything. If one exists, stop here — no new document is
+        // created, and the user sees a "you're already on the list" message
+        // instead of a misleading fresh signup confirmation.
+        const dupeQuery = query(waitlistRef, where('email', '==', email));
+        const existing = await getDocs(dupeQuery);
+
+        if (!existing.empty) {
+          setLoading(false);
+          showSuccess('duplicate');
+          return;
+        }
+
+        // No existing match — proceed with the normal registration flow.
+        // The success message only renders after this resolves; if Firestore
+        // rejects (network issue, security rules, etc.) we drop into the
+        // catch block instead and never show success.
+        await addDoc(waitlistRef, {
+          email: email,
+          createdAt: serverTimestamp(),
+          source: 'landing_page'
+        });
+
+        // Send confirmation email via EmailJS
+        try {
+          await emailjs.send('service_0g1xqwr', 'template_fxoydfq', {
+            email: email,
+            user_email: email
+          });
+        } catch (emailErr) {
+          // Email sending failed silently — waitlist signup still succeeded
+          console.warn('EmailJS send failed:', emailErr);
+        }
+
+        setLoading(false);
+        emailInput.value = '';
+        showSuccess('newSignup');
+      } catch (err) {
+        // Log the real error for debugging; show a generic, friendly
+        // message to the user instead of leaking implementation details.
+        console.error('Waitlist submission to Firestore failed:', err);
+        setLoading(false);
+        setError('Something went wrong on our end — please try again in a moment.');
+      }
+    });
+  })();
+
+</script>
+<script>
+  const glow1 = document.querySelector('.mouse-glow');
+const glow2 = document.querySelector('.mouse-glow-2');
+
+let mouseX = 0, mouseY = 0;
+let currentX1 = 0, currentY1 = 0;
+let currentX2 = 0, currentY2 = 0;
+
+window.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+function animateGlow() {
+  // Smooth easing (inertia feel)
+  currentX1 += (mouseX - currentX1) * 0.12;
+  currentY1 += (mouseY - currentY1) * 0.12;
+
+  currentX2 += (mouseX - currentX2) * 0.06;
+  currentY2 += (mouseY - currentY2) * 0.06;
+
+  glow1.style.transform = `translate(${currentX1}px, ${currentY1}px)`;
+  glow2.style.transform = `translate(${currentX2}px, ${currentY2}px)`;
+
+  requestAnimationFrame(animateGlow);
+}
+
+animateGlow();
+document.documentElement.style.setProperty('--x', mouseX + 'px');
+document.documentElement.style.setProperty('--y', mouseY + 'px');
+currentX2 += (mouseX - currentX2) * 0.03; // slower for trail
+
+const newsletterInput = document.querySelector('.newsletter-input input');
+const newsletterBtn = document.getElementById('newsletterBtn');
+const newsletterMsg = document.getElementById('newsletterMsg');
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+newsletterBtn.addEventListener('click', () => {
+  const email = newsletterInput.value.trim();
+
+  if (!email) {
+    newsletterMsg.style.color = "#ef4444";
+    newsletterMsg.textContent = "Please enter your email.";
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    newsletterMsg.style.color = "#ef4444";
+    newsletterMsg.textContent = "Enter a valid email address.";
+    return;
+  }
+
+  // success state
+  newsletterMsg.style.color = "#22c55e";
+  newsletterMsg.textContent = " You're subscribed successfully!";
+
+  newsletterInput.value = "";
+
+  // auto-hide message after 3s
+  setTimeout(() => {
+    newsletterMsg.textContent = "";
+  }, 3000);
+});
+newsletterBtn.textContent = "✓";
+setTimeout(() => newsletterBtn.textContent = "→", 1500);
+window.addEventListener("load", () => {
+  const preloader = document.getElementById("preloader");
+
+  setTimeout(() => {
+    preloader.classList.add("hide");
+    document.body.classList.add("loaded");
+  }, 800);
+});
+</script>
+</body>
+</html>
